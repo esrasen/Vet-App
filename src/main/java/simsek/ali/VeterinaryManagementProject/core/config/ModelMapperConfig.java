@@ -1,19 +1,28 @@
 package simsek.ali.VeterinaryManagementProject.core.config;
 
+
+import org.hibernate.collection.spi.PersistentBag;
 import org.modelmapper.ModelMapper;
-import org.modelmapper.convention.MatchingStrategies;
-import org.modelmapper.spi.MatchingStrategy;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
+import java.util.ArrayList;
+import java.util.List;
+
 @Configuration
 public class ModelMapperConfig {
+
     @Bean
-    public ModelMapper modelMapper(){
+    public ModelMapper modelMapper() {
         ModelMapper modelMapper = new ModelMapper();
-        modelMapper.getConfiguration().setMatchingStrategy(MatchingStrategies.STANDARD);
+
+
+        modelMapper.addConverter(context -> new ArrayList<>(context.getSource()), PersistentBag.class, List.class);
+
+        modelMapper.getConfiguration()
+                .setFieldMatchingEnabled(true)
+                .setFieldAccessLevel(org.modelmapper.config.Configuration.AccessLevel.PRIVATE);
+
         return modelMapper;
     }
-
-
 }

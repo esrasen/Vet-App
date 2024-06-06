@@ -1,4 +1,5 @@
 package simsek.ali.VeterinaryManagementProject.dto.response;
+
 import lombok.AllArgsConstructor;
 import lombok.Getter;
 import lombok.NoArgsConstructor;
@@ -19,4 +20,5 @@ public class VaccinationResponse {
     private LocalDate protectionStartDate;
     private LocalDate protectionFinishDate;
     private Animal animal;
+    private ReportSimpleResponse report;
 }

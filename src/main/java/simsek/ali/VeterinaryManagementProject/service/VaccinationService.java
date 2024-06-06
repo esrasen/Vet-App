@@ -6,103 +6,143 @@ import org.springframework.data.domain.Page;
 import org.springframework.data.domain.PageRequest;
 import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
+import org.springframework.transaction.annotation.Transactional;
 import simsek.ali.VeterinaryManagementProject.dto.request.VaccinationRequest;
 import simsek.ali.VeterinaryManagementProject.dto.response.VaccinationResponse;
+import simsek.ali.VeterinaryManagementProject.entity.Animal;
+import simsek.ali.VeterinaryManagementProject.entity.Report;
 import simsek.ali.VeterinaryManagementProject.entity.Vaccination;
 import simsek.ali.VeterinaryManagementProject.exception.DuplicateDataException;
 import simsek.ali.VeterinaryManagementProject.exception.EntityNotFoundException;
 import simsek.ali.VeterinaryManagementProject.exception.ProtectionStillActiveException;
+import simsek.ali.VeterinaryManagementProject.repository.AnimalRepository;
+import simsek.ali.VeterinaryManagementProject.repository.ReportRepository;
 import simsek.ali.VeterinaryManagementProject.repository.VaccinationRepository;
 
 import java.time.LocalDate;
 import java.util.List;
-import java.util.Optional;
 
 @Service
 @RequiredArgsConstructor
 public class VaccinationService {
 
     private final VaccinationRepository vaccinationRepository;
-    private final ReportService reportService;
+    private final ReportRepository reportRepository;
+    private final AnimalRepository animalRepository;
     private final ModelMapper modelMapper;
 
-    public Page<VaccinationResponse> findAllVaccinations(int pageNumber, int pageSize){
 
+    public Page<VaccinationResponse> findAllVaccinations(int pageNumber, int pageSize) {
         Pageable pageable = PageRequest.of(pageNumber, pageSize);
-
-        return vaccinationRepository.findAll(pageable).map(vaccination -> modelMapper.map(vaccination, VaccinationResponse.class));
+        return vaccinationRepository.findAll(pageable)
+                .map(vaccination -> modelMapper.map(vaccination, VaccinationResponse.class));
     }
 
-    public VaccinationResponse findVaccinationById(Long id){
-
-        return modelMapper.map(vaccinationRepository.findById(id).orElseThrow(()-> new EntityNotFoundException(id, Vaccination.class))
-                , VaccinationResponse.class);
+    public VaccinationResponse findVaccinationById(Long id) {
+        Vaccination vaccination = vaccinationRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException(id, Vaccination.class));
+        return modelMapper.map(vaccination, VaccinationResponse.class);
     }
 
     public Page<VaccinationResponse> findAnimalsByVaccinationProtectionFinishDateRange(LocalDate startDate, LocalDate endDate, int pageNumber, int pageSize) {
-
         Pageable pageable = PageRequest.of(pageNumber, pageSize);
-
-        return vaccinationRepository.findByProtectionFinishDateBetween(startDate,endDate, pageable).map(vaccination -> modelMapper.map(vaccination, VaccinationResponse.class));
+        return vaccinationRepository.findByProtectionFinishDateBetween(startDate, endDate, pageable)
+                .map(vaccination -> modelMapper.map(vaccination, VaccinationResponse.class));
     }
 
     public Page<VaccinationResponse> findVaccinationsByAnimal(Long id, int pageNumber, int pageSize) {
-
         Pageable pageable = PageRequest.of(pageNumber, pageSize);
-
-        return vaccinationRepository.findByAnimalId(id, pageable).map(vaccination -> modelMapper.map(vaccination, VaccinationResponse.class));
+        return vaccinationRepository.findByAnimalId(id, pageable)
+                .map(vaccination -> modelMapper.map(vaccination, VaccinationResponse.class));
     }
 
-    public VaccinationResponse createVaccination(VaccinationRequest vaccinationRequest){
+    public VaccinationResponse createVaccination(VaccinationRequest vaccinationRequest) {
         List<Vaccination> existValidVaccinationWithSameSpecsAnd =
-                vaccinationRepository.findByNameAndCodeAndAnimalIdAndProtectionFinishDateGreaterThanEqual(vaccinationRequest.getName(), vaccinationRequest.getCode(), vaccinationRequest.getAnimalWithoutCustomer().getId(), vaccinationRequest.getProtectionStartDate());
+                vaccinationRepository.findByNameAndCodeAndAnimalIdAndProtectionFinishDateGreaterThanEqual(
+                        vaccinationRequest.getName(), vaccinationRequest.getCode(),
+                        vaccinationRequest.getAnimalWithoutCustomer().getId(),
+                        vaccinationRequest.getProtectionStartDate());
 
-        if (!existValidVaccinationWithSameSpecsAnd.isEmpty()){
-            throw new ProtectionStillActiveException("The vaccine you want to save is still protective for this animal.");
+        if (!existValidVaccinationWithSameSpecsAnd.isEmpty()) {
+            throw new ProtectionStillActiveException("Girdiğiniz aşı koruyuculuk tarihlerinde zaten devam eden bir koruyucuk var. Lütfen koruyuculuk tarihini değiştirin.");
         }
 
-        Vaccination newVaccination = modelMapper.map(vaccinationRequest, Vaccination.class);
-        //newVaccination.setReport(reportService.findReportById(vaccinationRequest.getReportId()));
+        Animal animal = animalRepository.findById(vaccinationRequest.getAnimalWithoutCustomer().getId())
+                .orElseThrow(() -> new EntityNotFoundException(vaccinationRequest.getAnimalWithoutCustomer().getId(), Animal.class));
+
+        Vaccination newVaccination = new Vaccination();
+        newVaccination.setName(vaccinationRequest.getName());
+        newVaccination.setCode(vaccinationRequest.getCode());
+        newVaccination.setProtectionStartDate(vaccinationRequest.getProtectionStartDate());
+        newVaccination.setProtectionFinishDate(vaccinationRequest.getProtectionFinishDate());
+        newVaccination.setAnimal(animal);
+
+        if (vaccinationRequest.getReportId() != null) {
+            Report report = reportRepository.findById(vaccinationRequest.getReportId())
+                    .orElseThrow(() -> new EntityNotFoundException(vaccinationRequest.getReportId(), Report.class));
+            newVaccination.setReport(report);
+        }
+
         return modelMapper.map(vaccinationRepository.save(newVaccination), VaccinationResponse.class);
     }
 
-    public VaccinationResponse updateVaccination(Long id, VaccinationRequest vaccinationRequest){
-        Optional<Vaccination> vaccinationFromDb = vaccinationRepository.findById(id);
-        List<Vaccination> existOtherValidVaccinationFromRequest =
-                vaccinationRepository.findByNameAndCodeAndAnimalIdAndProtectionFinishDateGreaterThanEqual(vaccinationRequest.getName(), vaccinationRequest.getCode(), vaccinationRequest.getAnimalWithoutCustomer().getId(), vaccinationRequest.getProtectionStartDate());
+    @Transactional
+    public VaccinationResponse updateVaccination(Long id, VaccinationRequest vaccinationRequest) {
+        Vaccination vaccination = vaccinationRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException(id, Vaccination.class));
 
-        if (vaccinationFromDb.isEmpty()){
-            throw new EntityNotFoundException(id, Vaccination.class);
+        boolean animalChanged = false;
+        if (vaccinationRequest.getAnimalWithoutCustomer() != null) {
+            Animal newAnimal = animalRepository.findById(vaccinationRequest.getAnimalWithoutCustomer().getId())
+                    .orElseThrow(() -> new EntityNotFoundException(vaccinationRequest.getAnimalWithoutCustomer().getId(), Animal.class));
+            if (!vaccination.getAnimal().getId().equals(newAnimal.getId())) {
+                animalChanged = true;
+                vaccination.setAnimal(newAnimal);
+            }
         }
 
-        if (!existOtherValidVaccinationFromRequest.isEmpty() && !existOtherValidVaccinationFromRequest.get(existOtherValidVaccinationFromRequest.size()-1).getId().equals(id)){
-            throw new DuplicateDataException(Vaccination.class);
+        boolean protectionDatesChanged = !vaccination.getProtectionStartDate().equals(vaccinationRequest.getProtectionStartDate()) ||
+                !vaccination.getProtectionFinishDate().equals(vaccinationRequest.getProtectionFinishDate());
+
+        if (protectionDatesChanged || animalChanged) {
+            List<Vaccination> existOtherValidVaccinationFromRequest =
+                    vaccinationRepository.findByNameAndCodeAndAnimalIdAndProtectionFinishDateGreaterThanEqual(
+                            vaccinationRequest.getName(), vaccinationRequest.getCode(),
+                            vaccinationRequest.getAnimalWithoutCustomer().getId(),
+                            vaccinationRequest.getProtectionStartDate());
+
+            if (!existOtherValidVaccinationFromRequest.isEmpty() &&
+                    !existOtherValidVaccinationFromRequest.get(existOtherValidVaccinationFromRequest.size() - 1).getId().equals(id)) {
+                throw new DuplicateDataException(Vaccination.class);
+            }
+
+            if (!existOtherValidVaccinationFromRequest.isEmpty()) {
+                throw new ProtectionStillActiveException("Girdiğiniz aşı koruyuculuk tarihlerinde zaten devam eden bir koruyuculuk var. Lütfen koruyuculuk tarihini değiştirin.");
+            }
         }
 
-        if (!existOtherValidVaccinationFromRequest.isEmpty()){
-            throw new ProtectionStillActiveException("The vaccine you want to update is still protective for this animal.");
+
+        if (vaccinationRequest.getReportId() != null) {
+            Report report = reportRepository.findById(vaccinationRequest.getReportId())
+                    .orElseThrow(() -> new EntityNotFoundException(vaccinationRequest.getReportId(), Report.class));
+            vaccination.setReport(report);
+        } else {
+            vaccination.setReport(null);
         }
 
-        Vaccination updatedVaccination = vaccinationFromDb.get();
-        modelMapper.map(vaccinationRequest, updatedVaccination);
-        return modelMapper.map(vaccinationRepository.save(updatedVaccination), VaccinationResponse.class);
+        vaccination.setName(vaccinationRequest.getName());
+        vaccination.setCode(vaccinationRequest.getCode());
+        vaccination.setProtectionStartDate(vaccinationRequest.getProtectionStartDate());
+        vaccination.setProtectionFinishDate(vaccinationRequest.getProtectionFinishDate());
+
+        return modelMapper.map(vaccinationRepository.save(vaccination), VaccinationResponse.class);
     }
 
-    public String deleteVaccination(Long id){
-        Optional<Vaccination> vaccinationFromDb = vaccinationRepository.findById(id);
-        if (vaccinationFromDb.isEmpty()){
-            throw new EntityNotFoundException(id, Vaccination.class);
-        }
-        else {
-            vaccinationRepository.delete(vaccinationFromDb.get());
-            return "Vaccine deleted.";
-        }
-    }
 
-    /*
-    public VaccinationResponse vaccineResponseDtoFromVaccine(Vaccination vaccination){
-            VaccinationResponse vaccinationResponse = modelMapper.map(vaccination, VaccinationResponse.class);
-            vaccinationResponse.setReportForVaccinationResponse(modelMapper.map(vaccination.getReport(), ReportForVaccinationResponse.class));
-        return vaccinationResponse;
-    }     */
+    public String deleteVaccination(Long id) {
+        Vaccination vaccination = vaccinationRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException(id, Vaccination.class));
+        vaccinationRepository.delete(vaccination);
+        return "Vaccine deleted.";
+    }
 }

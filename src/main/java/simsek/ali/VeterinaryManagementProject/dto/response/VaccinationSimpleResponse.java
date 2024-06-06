@@ -5,17 +5,16 @@ import lombok.Getter;
 import lombok.NoArgsConstructor;
 import lombok.Setter;
 
-import java.util.List;
+import java.time.LocalDate;
 
 @Getter
 @Setter
 @NoArgsConstructor
 @AllArgsConstructor
-public class ReportResponse {
+public class VaccinationSimpleResponse {
     private Long id;
-    private String title;
-    private String diagnosis;
-    private double price;
-    private AppointmentForReportResponse appointment;
-    private List<VaccinationResponse> vaccinationList;
+    private String name;
+    private String code;
+    private LocalDate protectionStartDate;
+    private LocalDate protectionFinishDate;
 }

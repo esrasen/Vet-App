@@ -4,6 +4,6 @@ import java.time.LocalDate;
 
 public class DoctorNotAvailableException extends RuntimeException {
     public DoctorNotAvailableException(LocalDate date) {
-        super("The Doctor doesn't work on " + date);
+        super(date + " bu tarihte müsait değil.");
     }
 }

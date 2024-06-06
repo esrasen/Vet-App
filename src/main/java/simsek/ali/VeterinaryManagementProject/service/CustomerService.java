@@ -23,43 +23,43 @@ public class CustomerService {
     private final CustomerRepository customerRepository;
     private final ModelMapper modelMapper;
 
-    public Page<CustomerResponse> findAllCustomers (int pageNumber, int pageSize){
+    public Page<CustomerResponse> findAllCustomers(int pageNumber, int pageSize) {
         Pageable pageable = PageRequest.of(pageNumber, pageSize);
         //TODO LİSTE BOŞSA BULUNAMADI HATASI FIRLAT
         return customerRepository.findAll(pageable).map(customer -> modelMapper.map(customer, CustomerResponse.class));
     }
 
-    public CustomerResponse findCustomerById (Long id){
-        return modelMapper.map(customerRepository.findById(id).orElseThrow(()-> new EntityNotFoundException(id, Customer.class))
+    public CustomerResponse findCustomerById(Long id) {
+        return modelMapper.map(customerRepository.findById(id).orElseThrow(() -> new EntityNotFoundException(id, Customer.class))
                 , CustomerResponse.class);
     }
 
-    public Page<CustomerResponse>  findCustomersByName(String name, int pageNumber, int pageSize) {
+    public Page<CustomerResponse> findCustomersByName(String name, int pageNumber, int pageSize) {
         Pageable pageable = PageRequest.of(pageNumber, pageSize);
         //TODO LİSTE BOŞSA BULUNAMADI HATASI FIRLAT
-        return customerRepository.findByNameContaining(name,pageable).map(customer -> modelMapper.map(customer, CustomerResponse.class));
+        return customerRepository.findByNameContainingIgnoreCase(name, pageable).map(customer -> modelMapper.map(customer, CustomerResponse.class));
     }
 
-    public CustomerResponse createCustomer(CustomerRequest customerRequest){
+    public CustomerResponse createCustomer(CustomerRequest customerRequest) {
         Optional<Customer> existCustomerWithSameSpecs = customerRepository.findByNameAndEmail(customerRequest.getName(), customerRequest.getEmail());
 
-        if (existCustomerWithSameSpecs.isPresent()){
+        if (existCustomerWithSameSpecs.isPresent()) {
             throw new EntityAlreadyExistException(Customer.class);
         }
         Customer newCustomer = modelMapper.map(customerRequest, Customer.class);
         return modelMapper.map(customerRepository.save(newCustomer), CustomerResponse.class);
     }
 
-    public CustomerResponse updateCustomer (Long id, CustomerRequest customerRequest){
+    public CustomerResponse updateCustomer(Long id, CustomerRequest customerRequest) {
         Optional<Customer> customerFromDb = customerRepository.findById(id);
         Optional<Customer> existOtherCustomerFromRequest = customerRepository.findByNameAndEmail(customerRequest.getName(), customerRequest.getEmail());
 
-        if (customerFromDb.isEmpty()){
+        if (customerFromDb.isEmpty()) {
             throw new EntityNotFoundException(id, Customer.class);
         }
 
-        if (existOtherCustomerFromRequest.isPresent() && !existOtherCustomerFromRequest.get().getId().equals(id)){
-            throw new DuplicateDataException (Customer.class);
+        if (existOtherCustomerFromRequest.isPresent() && !existOtherCustomerFromRequest.get().getId().equals(id)) {
+            throw new DuplicateDataException(Customer.class);
         }
 
         Customer updatedCustomer = customerFromDb.get();
@@ -68,12 +68,11 @@ public class CustomerService {
     }
 
 
-    public String deleteCustomer (Long id){
+    public String deleteCustomer(Long id) {
         Optional<Customer> customerFromDb = customerRepository.findById(id);
-        if (customerFromDb.isEmpty()){
+        if (customerFromDb.isEmpty()) {
             throw new EntityNotFoundException(id, Customer.class);
-        }
-        else {
+        } else {
             customerRepository.delete(customerFromDb.get());
             return "Customer deleted.";
         }

@@ -8,6 +8,7 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.stereotype.Service;
 import simsek.ali.VeterinaryManagementProject.dto.request.ReportRequest;
 import simsek.ali.VeterinaryManagementProject.dto.response.ReportResponse;
+import simsek.ali.VeterinaryManagementProject.dto.response.VaccinationResponse;
 import simsek.ali.VeterinaryManagementProject.entity.Appointment;
 import simsek.ali.VeterinaryManagementProject.entity.Report;
 import simsek.ali.VeterinaryManagementProject.exception.DuplicateDataException;
@@ -16,6 +17,7 @@ import simsek.ali.VeterinaryManagementProject.exception.EntityNotFoundException;
 import simsek.ali.VeterinaryManagementProject.repository.ReportRepository;
 
 import java.util.Optional;
+import java.util.stream.Collectors;
 
 @Service
 @RequiredArgsConstructor
@@ -25,19 +27,31 @@ public class ReportService {
     private final AppointmentService appointmentService;
     private final ModelMapper modelMapper;
 
-    public Page<ReportResponse> findAllReports (int pageNumber, int pageSize){
+    public Page<ReportResponse> findAllReports(int pageNumber, int pageSize) {
         Pageable pageable = PageRequest.of(pageNumber, pageSize);
         return reportRepository.findAll(pageable).map(this::reportResponseDtoFromReport);
     }
 
-    public ReportResponse findReportById (Long id){
-        return reportRepository.findById(id).map(this::reportResponseDtoFromReport).orElseThrow(() -> new EntityNotFoundException(id, Report.class));
+    public ReportResponse findReportById(Long id) {
+        Report report = reportRepository.findById(id)
+                .orElseThrow(() -> new EntityNotFoundException(id, Report.class));
+        return reportResponseDtoFromReport(report);
     }
 
-    public ReportResponse createReport(ReportRequest reportRequest){
+    public ReportResponse reportResponseDtoFromReport(Report report) {
+        ReportResponse reportResponse = modelMapper.map(report, ReportResponse.class);
+        if (report.getAppointment() != null && report.getAppointment().getAnimal() != null && report.getAppointment().getAnimal().getCustomer() != null) {
+            reportResponse.getAppointment().setCustomerName(report.getAppointment().getAnimal().getCustomer().getName());
+        } else {
+            reportResponse.getAppointment().setCustomerName(null);
+        }
+        return reportResponse;
+    }
+
+    public ReportResponse createReport(ReportRequest reportRequest) {
         Optional<Report> existReportWithSameSpecs = reportRepository.findByAppointmentId(reportRequest.getAppointmentId());
 
-        if (existReportWithSameSpecs.isPresent()){
+        if (existReportWithSameSpecs.isPresent()) {
             throw new EntityAlreadyExistException(Report.class);
         }
 
@@ -45,19 +59,19 @@ public class ReportService {
         reportRequest.setAppointmentId(null);
         Report newReport = modelMapper.map(reportRequest, Report.class);
         newReport.setAppointment(appointmentFromDb);
-        return reportResponseDtoFromReport(reportRepository.save(newReport));
+        return convertToDto(reportRepository.save(newReport));
     }
 
-    public ReportResponse updateReport (Long id, ReportRequest reportRequest){
+    public ReportResponse updateReport(Long id, ReportRequest reportRequest) {
         Optional<Report> reportFromDb = reportRepository.findById(id);
         Optional<Report> existOtherReportFromRequest =
                 reportRepository.findReportByTitleAndDiagnosisAndPriceAndAppointmentId(reportRequest.getTitle(), reportRequest.getDiagnosis(), reportRequest.getPrice(), reportRequest.getAppointmentId());
 
-        if (reportFromDb.isEmpty()){
+        if (reportFromDb.isEmpty()) {
             throw new EntityNotFoundException(id, Report.class);
         }
 
-        if (existOtherReportFromRequest.isPresent() && !existOtherReportFromRequest.get().getId().equals(id)){
+        if (existOtherReportFromRequest.isPresent() && !existOtherReportFromRequest.get().getId().equals(id)) {
             throw new DuplicateDataException(Report.class);
         }
 
@@ -67,27 +81,26 @@ public class ReportService {
         updatedReport.setDiagnosis(reportRequest.getDiagnosis());
         updatedReport.setPrice(reportRequest.getPrice());
         updatedReport.setAppointment(appointmentFromDb);
-        return reportResponseDtoFromReport(reportRepository.save(updatedReport));
+        return convertToDto(reportRepository.save(updatedReport));
     }
 
-    public String deleteReport (Long id){
+    public String deleteReport(Long id) {
         Optional<Report> reportFromDb = reportRepository.findById(id);
-        if (reportFromDb.isEmpty()){
+        if (reportFromDb.isEmpty()) {
             throw new EntityNotFoundException(id, Report.class);
-        }
-        else {
+        } else {
             reportRepository.delete(reportFromDb.get());
             return "Report deleted.";
         }
     }
 
-
-    public ReportResponse reportResponseDtoFromReport(Report report){
-        ReportResponse reportResponse = modelMapper.map(report, ReportResponse.class);
-        reportResponse.getAppointment().setCustomerName(report.getAppointment().getAnimal().getCustomer().getName());
-        return reportResponse;
+    private ReportResponse convertToDto(Report report) {
+        ReportResponse response = modelMapper.map(report, ReportResponse.class);
+        if (report.getVaccinationList() != null) {
+            response.setVaccinationList(report.getVaccinationList().stream()
+                    .map(vaccination -> modelMapper.map(vaccination, VaccinationResponse.class))
+                    .collect(Collectors.toList()));
+        }
+        return response;
     }
-
-
-
 }

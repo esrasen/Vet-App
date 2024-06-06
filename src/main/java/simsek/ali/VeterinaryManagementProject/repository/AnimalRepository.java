@@ -7,16 +7,15 @@ import org.springframework.stereotype.Repository;
 import simsek.ali.VeterinaryManagementProject.entity.Animal;
 
 import java.time.LocalDate;
-import java.util.List;
 import java.util.Optional;
 
 @Repository
 public interface AnimalRepository extends JpaRepository<Animal, Long> {
     Optional<Animal> findByNameAndSpeciesAndGenderAndDateOfBirth(String name, String species, String gender, LocalDate dateOfBirth);
 
-    Page<Animal> findByNameContaining(String name, Pageable pageable);
+    Page<Animal> findByNameContainingIgnoreCase(String name, Pageable pageable);
 
-    Page<Animal> findByCustomerName(String customerName, Pageable pageable);
+    Page<Animal> findByCustomer_NameContainingIgnoreCase(String customerName, Pageable pageable);
 
 
 }
