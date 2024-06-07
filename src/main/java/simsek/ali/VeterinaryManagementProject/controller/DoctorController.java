@@ -24,6 +24,14 @@ public class DoctorController {
         return ResponseEntity.status(HttpStatus.OK).body(doctorService.findAllDoctors(pageNumber, pageSize));
     }
 
+    @GetMapping("/searchByName")
+    public ResponseEntity<Page<DoctorResponse>> findDoctorsByName (
+            @RequestParam String name,
+            @RequestParam(name = "pageNumber", required = false, defaultValue = "0") int pageNumber,
+            @RequestParam(name = "pageSize", required = false, defaultValue = "10") int pageSize){
+        return ResponseEntity.status(HttpStatus.OK).body(doctorService.findDoctorsByName(name, pageNumber, pageSize));
+    }
+
     @GetMapping("/{id}")
     public ResponseEntity<DoctorResponse> findDoctorById (@PathVariable Long id){
         return ResponseEntity.status(HttpStatus.OK).body(doctorService.findDoctorById(id));

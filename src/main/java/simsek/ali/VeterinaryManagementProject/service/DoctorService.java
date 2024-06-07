@@ -34,6 +34,11 @@ public class DoctorService {
                 , DoctorResponse.class);
     }
 
+    public Page<DoctorResponse> findDoctorsByName(String name, int pageNumber, int pageSize) {
+        Pageable pageable = PageRequest.of(pageNumber, pageSize);
+        return doctorRepository.findByNameContainingIgnoreCase(name, pageable).map(doctor -> modelMapper.map(doctor, DoctorResponse.class));
+    }
+
     public Doctor findDoctor (Long id){
         return doctorRepository.findById(id).orElseThrow(()-> new EntityNotFoundException(id, Doctor.class));
     }

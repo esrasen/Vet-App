@@ -50,9 +50,9 @@ public class VaccinationService {
                 .map(vaccination -> modelMapper.map(vaccination, VaccinationResponse.class));
     }
 
-    public Page<VaccinationResponse> findVaccinationsByAnimal(Long id, int pageNumber, int pageSize) {
+    public Page<VaccinationResponse> findVaccinationsByAnimalName(String name, int pageNumber, int pageSize) {
         Pageable pageable = PageRequest.of(pageNumber, pageSize);
-        return vaccinationRepository.findByAnimalId(id, pageable)
+        return vaccinationRepository.findByAnimalNameContainingIgnoreCase(name, pageable)
                 .map(vaccination -> modelMapper.map(vaccination, VaccinationResponse.class));
     }
 

@@ -22,7 +22,7 @@ public class VaccinationController {
     public ResponseEntity<Page<VaccinationResponse>> findAllVaccinations(
             @RequestParam(name = "pageNumber", required = false, defaultValue = "0") int pageNumber,
             @RequestParam(name = "pageSize", required = false, defaultValue = "10") int pageSize
-        ){
+    ){
         return ResponseEntity.status(HttpStatus.OK).body(vaccinationService.findAllVaccinations(pageNumber, pageSize));
     }
 
@@ -38,17 +38,17 @@ public class VaccinationController {
             @RequestParam LocalDate endDate,
             @RequestParam(name = "pageNumber", required = false, defaultValue = "0") int pageNumber,
             @RequestParam(name = "pageSize", required = false, defaultValue = "10") int pageSize
-            ){
+    ){
         return ResponseEntity.status(HttpStatus.OK).body(vaccinationService.findAnimalsByVaccinationProtectionFinishDateRange(startDate, endDate, pageNumber, pageSize));
     }
 
-    @GetMapping("/searchByAnimal")
-    public ResponseEntity<Page<VaccinationResponse>> findVaccinationsByAnimal(
-            @RequestParam Long id,
+    @GetMapping("/searchByName")
+    public ResponseEntity<Page<VaccinationResponse>> findVaccinationsByAnimalName(
+            @RequestParam String name,
             @RequestParam(name = "pageNumber", required = false, defaultValue = "0") int pageNumber,
             @RequestParam(name = "pageSize", required = false, defaultValue = "10") int pageSize
-            ){
-        return ResponseEntity.status(HttpStatus.OK).body(vaccinationService.findVaccinationsByAnimal(id, pageNumber, pageSize));
+    ){
+        return ResponseEntity.status(HttpStatus.OK).body(vaccinationService.findVaccinationsByAnimalName(name, pageNumber, pageSize));
     }
 
     @PostMapping
